@@ -29,6 +29,10 @@ public class IndexService {
 
     @PostConstruct
     public void tryToCreateIndices() {
+        reCreateIndices(false);
+    }
+
+    public void reCreateIndices(final boolean deleteExisting) {
         final String settings = Util.loadAsString("static/es-settings.json");
 
         for (final String indexName: INDICES_TO_CREATE) {
@@ -36,7 +40,9 @@ public class IndexService {
                 boolean indexExists = client.indices().exists(
                         b -> b.index(indexName)).value();
                 if (indexExists) {
-                    continue;
+                    if (!deleteExisting) {
+                        continue;
+                    }
                 }
 
                 final String mappings = Util.loadAsString(

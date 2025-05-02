@@ -4,13 +4,23 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import com.elasticsearch.elasticsearch.document.Vehicle;
 import com.elasticsearch.elasticsearch.helper.Indices;
+import com.elasticsearch.elasticsearch.search.SearchRequestDTO;
+import com.elasticsearch.elasticsearch.search.util.SearchUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
+import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class VehicleService {
@@ -22,8 +32,31 @@ public class VehicleService {
     private final ElasticsearchClient client;
 
     @Autowired
+    private ElasticsearchOperations elasticsearchOperations;
+
+    @Autowired
     public VehicleService(ElasticsearchClient client) {
         this.client = client;
+    }
+
+    public List<Vehicle> search(final SearchRequestDTO dto) {
+        final Query query = SearchUtil.buildSearchRequest(dto);
+
+        if (query == null) {
+            LOGGER.error("Failed to build search request");
+            return Collections.emptyList();
+        }
+
+        SearchHits<Vehicle> searchHits =
+                elasticsearchOperations.search(
+                        query,
+                        Vehicle.class,
+                        IndexCoordinates.of(Indices.VEHICLE_INDEX));
+
+        return searchHits.getSearchHits()
+                .stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
     }
 
     public Boolean index(final Vehicle vehicle) {
